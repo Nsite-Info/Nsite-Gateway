@@ -1,0 +1,8 @@
+{
+    "gateway": true,
+    "singlesite": false,
+    "npub": "",
+    "bootstraprelays": [
+       "wss://relay.damus.io"
+    ]
+   }
