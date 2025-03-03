@@ -39,7 +39,9 @@ const shadowHost = ref(null);
 
 const finalBlossomOutput = computed(() => {
   if (serverUrls.value.length && hashValue.value) {
-    return `${serverUrls.value[0]}/${hashValue.value}`;
+    const cleanServerUrl = serverUrls.value[0].replace(/\/$/, ""); // Remove trailing slash
+    const cleanHashValue = hashValue.value.replace(/^\//, ""); // Remove leading slash
+    return `${cleanServerUrl}/${cleanHashValue}`;
   }
   return null;
 });
