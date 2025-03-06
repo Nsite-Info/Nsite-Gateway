@@ -86,4 +86,8 @@ When you visit the newly deployed page it might take a little bit for cloudflare
 🚀 **You’re now set up with Nsite!** 🚀  
 Your Nsite should be accessible via the gateway and any connected custom domain.
 
+## TODO
 
+Still document & Create the work action.
+
+https://nuxt.com/deploy/github-pages
