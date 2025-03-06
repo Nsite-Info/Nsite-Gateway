@@ -32,6 +32,7 @@ const subdomain = ref(null);
 const serverUrls = ref([]);
 const hashValue = ref(null);
 const shadowHost = ref(null);
+const eventTags = ref([]);
 
 const finalBlossomOutput = computed(() => {
   if (serverUrls.value.length && hashValue.value) {
@@ -84,15 +85,29 @@ const subscribeToNDKEvents = async (pubkey) => {
   await ndk.connect();
 
   try {
-    const filter = { kinds: [34128], authors: [pubkey] };
+    const filter = {
+      kinds: [34128], // Listen for Kind 34128 events
+      authors: [pubkey],
+    };
+
     const subscription = ndk.subscribe(filter);
 
     subscription.on("event", (event) => {
+      console.log("New Event Received:", event);
+
+      // Extract relevant tags
+      const dTag = event.tags.find(tag => tag[0] === "d" && tag[1] === "/index.html");
       const xTag = event.tags.find(tag => tag[0] === "x");
-      if (xTag) {
-        hashValue.value = xTag[1];
+
+      // Only update if a matching 'd' tag exists
+      if (dTag && xTag) {
+        hashValue.value = xTag[1]; // Set the correct hash value for finalBlossomOutput
+        eventTags.value = [{ type: "x", value: xTag[1] }];
+        console.log("Updated Extracted Tags:", eventTags.value);
+        console.log("Updated Hash Value:", hashValue.value);
       }
     });
+
     subscription.start();
   } catch (error) {
     console.error("Error subscribing to NDK events:", error);
@@ -101,37 +116,25 @@ const subscribeToNDKEvents = async (pubkey) => {
 
 async function fetchAndRenderPage(url) {
   try {
+    console.log("Fetching page content from:", url);
     const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch content: ${response.statusText}`);
     }
     const content = await response.text();
     
-    await nextTick(); // Ensure shadowHost is available before proceeding
-    
+    await nextTick();
+
     if (shadowHost.value) {
       let shadowRoot = shadowHost.value.shadowRoot;
       if (!shadowRoot) {
         shadowRoot = shadowHost.value.attachShadow({ mode: "open" });
       }
       
-      // Extract styles
-      const styleMatch = content.match(/<style[^>]*>([\s\S]*?)<\/style>/gi);
-      const styles = styleMatch ? styleMatch.join('') : '';
-      
-      // Extract scripts and execute them
-      const scriptMatch = content.match(/<script[^>]*>([\s\S]*?)<\/script>/gi);
-      const scripts = scriptMatch ? scriptMatch.map(script => script.replace(/<script[^>]*>|<\/script>/g, '')) : [];
-      
-      shadowRoot.innerHTML = styles + content.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '');
-      
-      // Execute scripts
-      scripts.forEach(scriptContent => {
-        const script = document.createElement("script");
-        script.textContent = scriptContent;
-        document.body.appendChild(script);
-        document.body.removeChild(script);
-      });
+      shadowRoot.innerHTML = content;
+      console.log("Shadow DOM updated successfully.");
+    } else {
+      console.error("shadowHost is not available.");
     }
   } catch (err) {
     console.error("Error fetching content:", err);
@@ -139,6 +142,7 @@ async function fetchAndRenderPage(url) {
 }
 
 watch(finalBlossomOutput, async (newUrl) => {
+  console.log("watch triggered - new URL:", newUrl);
   if (newUrl) {
     await fetchAndRenderPage(newUrl);
   }
