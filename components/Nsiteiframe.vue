@@ -1,20 +1,20 @@
 <template>
-  <div class="mx-auto p-4 relative" v-if="hasSubdomain">
-    <div v-if="isLoading" class="text-center">
-      <p class="mt-2 text-gray-500 dark:text-gray-300 min-h-24">
+  <div class="relative w-screen h-screen">
+    <div v-if="isLoading" class="absolute inset-0 flex items-center justify-center bg-white dark:bg-gray-900">
+      <p class="text-gray-500 dark:text-gray-300 text-lg">
         Loading Data<span class="loading-dots"></span>
       </p>
     </div>
 
-    <div v-else-if="finalBlossomOutput" class="relative z-10 text-center my-2">
-     <!-- <h2 class="text-xl font-semibold tracking-tight text-white dark:text-white uppercase">
-        NSITE URL:
-      </h2>
-      <p class="text-white">{{ finalBlossomOutput }}</p> -->
-      <div v-if="finalBlossomOutput" ref="shadowHost"></div>
-    </div>
+    <iframe
+      v-else-if="finalBlossomOutput"
+      ref="iframeContainer"
+      :src="finalBlossomOutput"
+      class="absolute inset-0 w-full h-full border-none"
+      sandbox="allow-scripts allow-same-origin"
+    ></iframe>
 
-    <div v-else class="text-center text-gray-500">
+    <div v-else class="absolute inset-0 flex items-center justify-center text-gray-500 dark:text-gray-300">
       No relevant data found.
     </div>
   </div>
@@ -31,13 +31,13 @@ const hasSubdomain = ref(false);
 const subdomain = ref(null);
 const serverUrls = ref([]);
 const hashValue = ref(null);
-const shadowHost = ref(null);
+const iframeContainer = ref(null);
 const eventTags = ref([]);
 
 const finalBlossomOutput = computed(() => {
   if (serverUrls.value.length && hashValue.value) {
-    const cleanServerUrl = serverUrls.value[0].replace(/\/$/, ""); 
-    const cleanHashValue = hashValue.value.replace(/^\//, ""); 
+    const cleanServerUrl = serverUrls.value[0].replace(/\/$/, "");
+    const cleanHashValue = hashValue.value.replace(/^\//, "");
     return `${cleanServerUrl}/${cleanHashValue}`;
   }
   return null;
@@ -86,7 +86,7 @@ const subscribeToNDKEvents = async (pubkey) => {
 
   try {
     const filter = {
-      kinds: [34128], // Listen for Kind 34128 events
+      kinds: [34128],
       authors: [pubkey],
     };
 
@@ -95,13 +95,11 @@ const subscribeToNDKEvents = async (pubkey) => {
     subscription.on("event", (event) => {
       console.log("New Event Received:", event);
 
-      // Extract relevant tags
       const dTag = event.tags.find(tag => tag[0] === "d" && tag[1] === "/index.html");
       const xTag = event.tags.find(tag => tag[0] === "x");
 
-      // Only update if a matching 'd' tag exists
       if (dTag && xTag) {
-        hashValue.value = xTag[1]; // Set the correct hash value for finalBlossomOutput
+        hashValue.value = xTag[1];
         eventTags.value = [{ type: "x", value: xTag[1] }];
         console.log("Updated Extracted Tags:", eventTags.value);
         console.log("Updated Hash Value:", hashValue.value);
@@ -114,37 +112,12 @@ const subscribeToNDKEvents = async (pubkey) => {
   }
 };
 
-async function fetchAndRenderPage(url) {
-  try {
-    console.log("Fetching page content from:", url);
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch content: ${response.statusText}`);
-    }
-    const content = await response.text();
-    
-    await nextTick();
-
-    if (shadowHost.value) {
-      let shadowRoot = shadowHost.value.shadowRoot;
-      if (!shadowRoot) {
-        shadowRoot = shadowHost.value.attachShadow({ mode: "open" });
-      }
-      
-      shadowRoot.innerHTML = content;
-      console.log("Shadow DOM updated successfully.");
-    } else {
-      console.error("shadowHost is not available.");
-    }
-  } catch (err) {
-    console.error("Error fetching content:", err);
-  }
-}
-
 watch(finalBlossomOutput, async (newUrl) => {
   console.log("watch triggered - new URL:", newUrl);
-  if (newUrl) {
-    await fetchAndRenderPage(newUrl);
+  await nextTick();
+
+  if (iframeContainer.value) {
+    iframeContainer.value.src = newUrl;
   }
 });
 
